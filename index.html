@@ -5,13 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pokémon Dex Scrambler</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; color: #333; line-height: 1.6; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 950px; margin: 40px auto; padding: 0 20px; color: #333; line-height: 1.6; }
         h1 { color: #2c3e50; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #e0e0e0; padding: 10px; text-align: left; }
         th { background-color: #f8f9fa; }
         tr:nth-child(even) { background-color: #fcfcfc; }
         #loading { font-style: italic; color: #666; }
+        .match { font-weight: bold; color: #27ae60; }
     </style>
 </head>
 <body>
@@ -22,9 +23,9 @@
     <table id="resultTable" style="display:none;">
         <thead>
             <tr>
-                <th>Dex</th>
-                <th>Name</th>
-                <th>Scrambled Combinations</th>
+                <th>Original Dex</th>
+                <th>Original Name</th>
+                <th>Scrambled Combinations & Matched Pokémon (Name & BST)</th>
             </tr>
         </thead>
         <tbody id="tableBody"></tbody>
@@ -43,7 +44,7 @@
                 }
             }
             permute("", str);
-            return Array.from(results).sort().join(", ");
+            return Array.from(results).sort();
         }
 
         // Fetch the JSON file automatically when the page loads
@@ -53,14 +54,33 @@
                 const tbody = document.getElementById('tableBody');
                 tbody.innerHTML = '';
 
+                // Create a lookup map for fast O(1) access by Dex string (e.g., "0025")
+                const dexMap = {};
+                data.forEach(pokemon => {
+                    let padded = String(pokemon.dex).padStart(4, '0');
+                    dexMap[padded] = pokemon;
+                });
+
                 data.forEach(pokemon => {
                     let paddedDex = String(pokemon.dex).padStart(4, '0');
-                    let scrambles = getPermutations(paddedDex);
+                    let permutations = getPermutations(paddedDex);
+
+                    // Map each permutation to its corresponding Pokémon info if it exists
+                    let scrambleDetails = permutations.map(perm => {
+                        let targetPokemon = dexMap[perm];
+                        if (targetPokemon) {
+                            // If the scrambled code matches a real Pokémon in the Dex, show its details!
+                            return `<span class="match">${perm} (${targetPokemon.name} - BST: ${targetPokemon.bst})</span>`;
+                        } else {
+                            // Otherwise, just show the number
+                            return `${perm}`;
+                        }
+                    }).join(", ");
 
                     let row = `<tr>
                         <td><strong>${paddedDex}</strong></td>
                         <td>${pokemon.name}</td>
-                        <td><small>${scrambles}</small></td>
+                        <td><small>${scrambleDetails}</small></td>
                     </tr>`;
                     tbody.innerHTML += row;
                 });
