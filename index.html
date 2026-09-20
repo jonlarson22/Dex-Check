@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokémon Dex Scrambler</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; color: #333; line-height: 1.6; }
+        h1 { color: #2c3e50; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #e0e0e0; padding: 10px; text-align: left; }
+        th { background-color: #f8f9fa; }
+        tr:nth-child(even) { background-color: #fcfcfc; }
+        #loading { font-style: italic; color: #666; }
+    </style>
+</head>
+<body>
+
+    <h1>Pokémon National Dex Scrambler</h1>
+    <p id="loading">Loading Pokémon list...</p>
+
+    <table id="resultTable" style="display:none;">
+        <thead>
+            <tr>
+                <th>Dex</th>
+                <th>Name</th>
+                <th>Scrambled Combinations</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+
+    <script>
+        function getPermutations(str) {
+            let results = new Set();
+            function permute(prefix, rest) {
+                if (rest.length === 0) {
+                    results.add(prefix);
+                } else {
+                    for (let i = 0; i < rest.length; i++) {
+                        permute(prefix + rest[i], rest.slice(0, i) + rest.slice(i + 1));
+                    }
+                }
+            }
+            permute("", str);
+            return Array.from(results).sort().join(", ");
+        }
+
+        // Fetch the JSON file automatically when the page loads
+        fetch('pokemon.json')
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.getElementById('tableBody');
+                tbody.innerHTML = '';
+
+                data.forEach(pokemon => {
+                    let paddedDex = String(pokemon.dex).padStart(4, '0');
+                    let scrambles = getPermutations(paddedDex);
+
+                    let row = `<tr>
+                        <td><strong>${paddedDex}</strong></td>
+                        <td>${pokemon.name}</td>
+                        <td><small>${scrambles}</small></td>
+                    </tr>`;
+                    tbody.innerHTML += row;
+                });
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('resultTable').style.display = 'table';
+            })
+            .catch(error => {
+                document.getElementById('loading').innerText = 'Failed to load pokemon.json data.';
+                console.error('Error loading JSON:', error);
+            });
+    </script>
+</body>
+</html>
