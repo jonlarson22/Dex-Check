@@ -7,12 +7,17 @@
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 950px; margin: 40px auto; padding: 0 20px; color: #333; line-height: 1.6; }
         h1 { color: #2c3e50; }
+        .quick-search-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #e0e0e0; margin-bottom: 30px; }
+        .search-box { display: flex; flex-direction: column; }
+        .search-box label { font-weight: bold; margin-bottom: 5px; font-size: 14px; color: #2c3e50; }
+        .search-box input { padding: 8px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
+        .quick-results { margin-top: 8px; font-size: 13px; min-height: 40px; color: #555; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #e0e0e0; padding: 10px; text-align: left; }
         th { background-color: #f8f9fa; }
         tr:nth-child(even) { background-color: #fcfcfc; }
         #loading { font-style: italic; color: #666; }
-        .match { font-weight: bold; color: #27ae60; }
+        .match { font-weight: bold; color: #27ae60; background: #e8f8f0; padding: 2px 6px; border-radius: 4px; display: inline-block; margin: 2px; }
     </style>
 </head>
 <body>
@@ -20,12 +25,35 @@
     <h1>Pokémon National Dex Scrambler</h1>
     <p id="loading">Loading Pokémon list...</p>
 
+    <!-- 3 Quick Search Input Boxes -->
+    <div id="quickSearchSection" style="display:none;">
+        <h3>Quick Scrambler Search</h3>
+        <div class="quick-search-container">
+            <div class="search-box">
+                <label for="input1">Dex Number 1</label>
+                <input type="text" id="input1" placeholder="e.g. 0025" maxlength="4">
+                <div id="results1" class="quick-results"></div>
+            </div>
+            <div class="search-box">
+                <label for="input2">Dex Number 2</label>
+                <input type="text" id="input2" placeholder="e.g. 0150" maxlength="4">
+                <div id="results2" class="quick-results"></div>
+            </div>
+            <div class="search-box">
+                <label for="input3">Dex Number 3</label>
+                <input type="text" id="input3" placeholder="e.g. 0386" maxlength="4">
+                <div id="results3" class="quick-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Giant List Table -->
     <table id="resultTable" style="display:none;">
         <thead>
             <tr>
                 <th>Original Dex</th>
                 <th>Original Name</th>
-                <th>Scrambled Combinations & Matched Pokémon (Name & BST)</th>
+                <th>Possible Pokémon Combinations</th>
             </tr>
         </thead>
         <tbody id="tableBody"></tbody>
@@ -47,35 +75,59 @@
             return Array.from(results).sort();
         }
 
-        // Fetch the JSON file automatically when the page loads
-        fetch('pokemon.json')
-            .then(response => response.json())
-            .then(data => {
-                const tbody = document.getElementById('tableBody');
-                tbody.innerHTML = '';
+        const jsonURL = new URL('pokemon.json', window.location.href).href;
 
-                // Create a lookup map for fast O(1) access by Dex string (e.g., "0025")
+        fetch(jsonURL)
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
                 const dexMap = {};
                 data.forEach(pokemon => {
                     let padded = String(pokemon.dex).padStart(4, '0');
                     dexMap[padded] = pokemon;
                 });
 
+                // Helper function to generate filtered match details
+                function getScrambleDetails(inputStr) {
+                    let paddedInput = inputStr.padStart(4, '0');
+                    if (paddedInput.length !== 4) return "Enter a 4-digit dex number";
+
+                    let permutations = getPermutations(paddedInput);
+
+                    let validMatches = permutations
+                        .filter(perm => perm !== paddedInput && parseInt(perm, 10) <= 1025)
+                        .map(perm => dexMap[perm])
+                        .filter(target => target !== undefined);
+
+                    if (validMatches.length === 0) {
+                        return "<em>No valid Pokémon matches found.</em>";
+                    }
+
+                    return validMatches.map(target => 
+                        `<span class="match">${target.name} (BST: ${target.bst})</span>`
+                    ).join(" ");
+                }
+
+                // Setup Quick Search Inputs
+                for (let i = 1; i <= 3; i++) {
+                    const inputEl = document.getElementById(`input${i}`);
+                    const resultEl = document.getElementById(`results${i}`);
+
+                    inputEl.addEventListener('input', (e) => {
+                        let val = e.target.value.replace(/\D/g, ''); // numbers only
+                        resultEl.innerHTML = val ? getScrambleDetails(val) : '';
+                    });
+                }
+
+                // Populate Giant List Table
+                const tbody = document.getElementById('tableBody');
+                tbody.innerHTML = '';
+
                 data.forEach(pokemon => {
                     let paddedDex = String(pokemon.dex).padStart(4, '0');
-                    let permutations = getPermutations(paddedDex);
-
-                    // Map each permutation to its corresponding Pokémon info if it exists
-                    let scrambleDetails = permutations.map(perm => {
-                        let targetPokemon = dexMap[perm];
-                        if (targetPokemon) {
-                            // If the scrambled code matches a real Pokémon in the Dex, show its details!
-                            return `<span class="match">${perm} (${targetPokemon.name} - BST: ${targetPokemon.bst})</span>`;
-                        } else {
-                            // Otherwise, just show the number
-                            return `${perm}`;
-                        }
-                    }).join(", ");
+                    let scrambleDetails = getScrambleDetails(paddedDex);
 
                     let row = `<tr>
                         <td><strong>${paddedDex}</strong></td>
@@ -86,10 +138,11 @@
                 });
 
                 document.getElementById('loading').style.display = 'none';
+                document.getElementById('quickSearchSection').style.display = 'block';
                 document.getElementById('resultTable').style.display = 'table';
             })
             .catch(error => {
-                document.getElementById('loading').innerText = 'Failed to load pokemon.json data.';
+                document.getElementById('loading').innerText = 'Failed to load pokemon.json data: ' + error.message;
                 console.error('Error loading JSON:', error);
             });
     </script>
