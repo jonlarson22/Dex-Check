@@ -13,12 +13,13 @@ height and weight.
 - **Hosting:** Streamlit Cloud — repo `jonlarson22/Dex-Check`, branch
   `main`, main file path `app.py`
 
-Features: quick search by name or dex number for up to three Pokémon at
-once — the searched Pokémon gets a full detail row (sprite, types, all six
-stats, abilities, height, weight, generation) above its scramble matches,
-with a picker when a name is ambiguous (e.g. "nidoran"). Plus a full Dex
+Features: quick search for up to three Pokémon at once via a
+type-to-filter dropdown (search by name or dex number) — the searched
+Pokémon gets a full detail row (sprite, types, all six stats, abilities,
+height, weight, generation) above its scramble matches. Plus a full Dex
 explorer with name/dex search, type/generation filters, a BST range
-slider, sortable columns, and a picker for every column.
+slider, sortable columns, and a column picker (Sprite, Dex and Name are
+always shown).
 
 ### Data note
 
