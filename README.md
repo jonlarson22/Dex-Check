@@ -20,7 +20,8 @@ scrambles below — showing sprite, types, all six stats, abilities,
 height, weight and generation, so everything scrolls together. Plus a
 full Dex explorer with name/dex search, type/generation filters, a BST
 range slider, sortable columns, and a column picker (Sprite, Dex and
-Name are always shown).
+Name are always shown). Every column has a data-computed width, and the
+numeric columns (Dex, stats, heights, weights, Gen) are centered.
 
 ### Data note
 

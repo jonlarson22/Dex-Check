@@ -43,19 +43,41 @@ DISPLAY_NAMES = {
 RENAME = {k: v for k, v in DISPLAY_NAMES.items() if k != "sprite"}
 SPRITE_CONFIG = {"sprite": st.column_config.ImageColumn("Sprite",
                                                         width="small")}
-# Shared by every table: roomier text columns and one-decimal formats for
-# the measured quantities. Widths are sized from the data: the longest
-# ability list is 47 chars, the longest Scrambles To list is 73 chars.
-MEASURE_CONFIG = {
+# Every column gets an explicit width, computed from the data (longest
+# value vs header, ~7.8px per char + 30px padding, min 64px):
+#   Dex 4ch->64, Name 12ch->128, Type 19ch->184, stats/BST/Gen <=3ch->64,
+#   Abilities 47ch->400, Height 6ch->80, Height (m) header->112,
+#   Weight (lbs) header->128, Weight (kg) header->120, Scrambles 73ch->600
+COLUMN_CONFIG = {
+    **SPRITE_CONFIG,
+    "Dex": st.column_config.TextColumn("Dex", width=64),
+    "Name": st.column_config.TextColumn("Name", width=128),
+    "Type": st.column_config.TextColumn("Type", width=184),
+    "HP": st.column_config.NumberColumn("HP", width=64, format="%d"),
+    "Atk": st.column_config.NumberColumn("Atk", width=64, format="%d"),
+    "Def": st.column_config.NumberColumn("Def", width=64, format="%d"),
+    "SpA": st.column_config.NumberColumn("SpA", width=64, format="%d"),
+    "SpD": st.column_config.NumberColumn("SpD", width=64, format="%d"),
+    "Spe": st.column_config.NumberColumn("Spe", width=64, format="%d"),
+    "BST": st.column_config.NumberColumn("BST", width=64, format="%d"),
     "Abilities": st.column_config.TextColumn("Abilities", width=400),
-    "Scrambles To": st.column_config.TextColumn("Scrambles To", width=560),
-    "Weight (lbs)": st.column_config.NumberColumn("Weight (lbs)",
-                                                  format="%.1f"),
-    "Weight (kg)": st.column_config.NumberColumn("Weight (kg)",
-                                                 format="%.1f"),
-    "Height (m)": st.column_config.NumberColumn("Height (m)",
+    "Height": st.column_config.TextColumn("Height", width=80),
+    "Height (m)": st.column_config.NumberColumn("Height (m)", width=112,
                                                 format="%.1f"),
+    "Weight (lbs)": st.column_config.NumberColumn("Weight (lbs)",
+                                                  width=128, format="%.1f"),
+    "Weight (kg)": st.column_config.NumberColumn("Weight (kg)",
+                                                 width=120, format="%.1f"),
+    "Gen": st.column_config.NumberColumn("Gen", width=64, format="%d"),
+    "Scrambles To": st.column_config.TextColumn("Scrambles To", width=600),
 }
+# Columns whose contents (and headers, where the grid honors it) are
+# centered: Dex, the stats block, heights, weights and Gen. Name, Type,
+# Abilities and Scrambles To stay left-aligned.
+CENTER_COLS = ["Dex", "HP", "Atk", "Def", "SpA", "SpD", "Spe", "BST",
+               "Height", "Height (m)", "Weight (lbs)", "Weight (kg)",
+               "Gen"]
+ONE_DECIMAL = ("Weight (lbs)", "Weight (kg)", "Height (m)")
 
 # Every column the explorer can show, in canonical order. Sprite, Dex and
 # Name are permanent; the rest are pickable.
@@ -120,15 +142,20 @@ def dex_labels(dex_strs: tuple, names: tuple):
     return labels, lookup
 
 
-def show_table(frame: pd.DataFrame, cols: list, highlight_first: bool = False):
-    display = frame[cols].rename(columns=RENAME)
-    # Always go through a Styler so number formats are explicit: a bare
-    # Styler renders floats with 6 decimals (1.100000) instead of the
-    # grid's trimmed format.
+def styled(display: pd.DataFrame, highlight_first: bool = False):
+    """The Styler every table goes through: explicit one-decimal formats
+    (a bare Styler renders floats as 1.100000), centered numeric columns,
+    and optionally the gold highlight on the first row."""
     styler = display.style.format(
-        {c: "{:.1f}" for c in ("Weight (lbs)", "Weight (kg)", "Height (m)")
-         if c in display.columns}
-    )
+        {c: "{:.1f}" for c in ONE_DECIMAL if c in display.columns})
+    centered = [c for c in CENTER_COLS if c in display.columns]
+    if centered:
+        styler = styler.set_properties(subset=centered,
+                                       **{"text-align": "center"})
+        styler = styler.set_table_styles(
+            [{"selector": f"th.col{display.columns.get_loc(c)}",
+              "props": [("text-align", "center")]} for c in centered],
+            overwrite=False)
     if highlight_first and not display.empty:
         def style_row(row):
             css = ("background-color: rgba(250, 180, 0, 0.30); "
@@ -136,14 +163,16 @@ def show_table(frame: pd.DataFrame, cols: list, highlight_first: bool = False):
             return [css if row.name == display.index[0] else ""
                     for _ in row]
         styler = styler.apply(style_row, axis=1)
-    config = dict(MEASURE_CONFIG)
-    if "sprite" in cols:
-        config.update(SPRITE_CONFIG)
+    return styler
+
+
+def show_table(frame: pd.DataFrame, cols: list, highlight_first: bool = False):
+    display = frame[cols].rename(columns=RENAME)
     st.dataframe(
-        styler,
+        styled(display, highlight_first),
         hide_index=True,
         width="stretch",
-        column_config=config,
+        column_config=COLUMN_CONFIG,
     )
 
 
@@ -231,11 +260,11 @@ if gen_sel:
 view = view[(view["bst"] >= bst_range[0]) & (view["bst"] <= bst_range[1])]
 
 st.dataframe(
-    view[show_cols].rename(columns=RENAME),
+    styled(view[show_cols].rename(columns=RENAME)),
     hide_index=True,
     width="stretch",
     height=600,
-    column_config={**SPRITE_CONFIG, **MEASURE_CONFIG},
+    column_config=COLUMN_CONFIG,
 )
 st.caption(f"{len(view)} of {len(df)} Pokémon shown · Data: PokéAPI "
            "(current-generation base stats, base forms)")
