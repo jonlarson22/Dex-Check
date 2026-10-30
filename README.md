@@ -15,7 +15,7 @@ height and weight.
 
 Features: quick search for up to three Pokémon at once via a
 type-to-filter dropdown (search by name or dex number). Each result is a
-single table — the searched Pokémon on top (marked ★ Searched) with its
+single table — the searched Pokémon highlighted on the top row, its
 scrambles below — showing sprite, types, all six stats, abilities,
 height, weight and generation, so everything scrolls together. Plus a
 full Dex explorer with name/dex search, type/generation filters, a BST

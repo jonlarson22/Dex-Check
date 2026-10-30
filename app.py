@@ -18,7 +18,6 @@ DATA_PATH = Path(__file__).parent / "data" / "pokemon_full.json"
 
 STAT_COLS = ["hp", "attack", "defense", "sp_attack", "sp_defense", "speed"]
 DISPLAY_NAMES = {
-    "set": "Set",
     "sprite": "Sprite",
     "dex_str": "Dex",
     "name": "Name",
@@ -55,8 +54,8 @@ PICKABLE_COLS = [c for c in ALL_COLS if c not in PERMANENT_COLS]
 DEFAULT_PICKED = [c for c in PICKABLE_COLS
                   if c not in ("height_m", "weight_kg")]
 # Columns for the quick-search table: the searched Pokemon (top row,
-# marked) and its scrambles in ONE table so they share a single scroll.
-RESULT_COLS = (["set"] + PERMANENT_COLS + ["types_str"] + STAT_COLS +
+# highlighted) and its scrambles in ONE table so they share a scroll.
+RESULT_COLS = (PERMANENT_COLS + ["types_str"] + STAT_COLS +
                ["bst", "abilities_str", "height_ft", "weight_lbs",
                 "generation"])
 ALL_TYPES = [
@@ -108,9 +107,17 @@ def dex_labels(dex_strs: tuple, names: tuple):
     return labels, lookup
 
 
-def show_table(frame: pd.DataFrame, cols: list):
+def show_table(frame: pd.DataFrame, cols: list, highlight_first: bool = False):
+    display = frame[cols].rename(columns=RENAME)
+    if highlight_first and not display.empty:
+        def style_row(row):
+            css = ("background-color: rgba(250, 180, 0, 0.30); "
+                   "font-weight: bold")
+            return [css if row.name == display.index[0] else ""
+                    for _ in row]
+        display = display.style.apply(style_row, axis=1)
     st.dataframe(
-        frame[cols].rename(columns=RENAME),
+        display,
         hide_index=True,
         width="stretch",
         column_config=SPRITE_CONFIG if "sprite" in cols else {},
@@ -133,7 +140,7 @@ labels, label_to_dex = dex_labels(tuple(df["dex_str"]), tuple(df["name"]))
 st.header("Quick Scrambler Search")
 st.caption("Start typing a name or dex number in a box and pick from the "
            "filtered list — up to three Pokémon at once. Each result is a "
-           "single table — your Pokémon on top (★ Searched), then every "
+           "single table: your Pokémon highlighted on top, then every "
            "Pokémon whose dex number is a rearrangement of the same "
            "digits — so everything scrolls together.")
 
@@ -149,17 +156,12 @@ for slot in range(1, 4):
         if pick is None:
             continue
         dex = label_to_dex[pick]
-        source = df[df["dex"] == dex].copy()
-        source["set"] = "★ Searched"
-        matches = df[df["dex_str"].isin(smap[f"{dex:04d}"])].copy()
+        source = df[df["dex"] == dex]
+        matches = df[df["dex_str"].isin(smap[f"{dex:04d}"])]
         matches = matches.sort_values("dex")
-        matches["set"] = "Scramble"
         combined = pd.concat([source, matches], ignore_index=True)
 
-        row = source.iloc[0]
-        st.markdown(f"**You searched: {row['dex_str']} {row['name']}** — "
-                    f"{len(matches)} scramble(s)")
-        show_table(combined, RESULT_COLS)
+        show_table(combined, RESULT_COLS, highlight_first=True)
         if matches.empty:
             st.info("No valid Pokémon matches found.")
 

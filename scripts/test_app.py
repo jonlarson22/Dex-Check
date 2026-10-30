@@ -54,13 +54,16 @@ for f in frames(at):
             assert c == "sprite", f"sprite column renamed to {c!r}"
 print("2. sprite column key intact (ImageColumn will match)")
 
-# combined table: searched Pokemon is the top row, marked, with full detail
+# combined table: searched Pokemon is the highlighted top row, no Set
+# column, and the redundant 'You searched' header line is gone
 electrode = [f for f in frames(at)
              if "Name" in f.columns and "Electrode" in f["Name"].tolist()]
 frame = electrode[0]
 row = frame.iloc[0]
-assert row["Name"] == "Electrode" and row["Set"] == "★ Searched", row
-assert set(frame["Set"]) == {"★ Searched", "Scramble"}
+assert row["Name"] == "Electrode", row
+assert "Set" not in frame.columns, list(frame.columns)
+assert not any("You searched" in (m.value or "") for m in at.markdown), \
+    "redundant 'You searched' header still present"
 for c in ["HP", "Atk", "Def", "SpA", "SpD", "Spe", "BST", "Abilities",
           "Height", "Weight (lbs)", "Gen"]:
     assert c in frame.columns, f"combined row missing column {c}"
@@ -68,7 +71,7 @@ assert int(row["BST"]) == 490 and int(row["Spe"]) == 150, row
 # Metapod has no hidden ability: must not render 'nan'
 metapod = frame[frame["Name"] == "Metapod"].iloc[0]
 assert metapod["Abilities"] == "Shed Skin", metapod["Abilities"]
-print("3. combined table + full-detail top row OK")
+print("3. combined table, highlighted top row, no Set/header OK")
 
 # ---- 4. dropdown options: all 1025, searchable by name or number
 at = fresh()
