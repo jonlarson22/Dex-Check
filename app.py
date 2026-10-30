@@ -18,6 +18,7 @@ DATA_PATH = Path(__file__).parent / "data" / "pokemon_full.json"
 
 STAT_COLS = ["hp", "attack", "defense", "sp_attack", "sp_defense", "speed"]
 DISPLAY_NAMES = {
+    "set": "Set",
     "sprite": "Sprite",
     "dex_str": "Dex",
     "name": "Name",
@@ -53,8 +54,9 @@ ALL_COLS = (PERMANENT_COLS + ["types_str"] + STAT_COLS +
 PICKABLE_COLS = [c for c in ALL_COLS if c not in PERMANENT_COLS]
 DEFAULT_PICKED = [c for c in PICKABLE_COLS
                   if c not in ("height_m", "weight_kg")]
-# Columns used for the quick-search tables (searched Pokemon + its matches).
-RESULT_COLS = (PERMANENT_COLS + ["types_str"] + STAT_COLS +
+# Columns for the quick-search table: the searched Pokemon (top row,
+# marked) and its scrambles in ONE table so they share a single scroll.
+RESULT_COLS = (["set"] + PERMANENT_COLS + ["types_str"] + STAT_COLS +
                ["bst", "abilities_str", "height_ft", "weight_lbs",
                 "generation"])
 ALL_TYPES = [
@@ -72,8 +74,10 @@ def load_data() -> pd.DataFrame:
 
     def abilities_str(row):
         parts = list(row["abilities"])
-        if row["hidden_ability"]:
-            parts.append(f"{row['hidden_ability']} (HA)")
+        ha = row["hidden_ability"]
+        # JSON null arrives as float NaN via pandas; only real strings count
+        if isinstance(ha, str) and ha:
+            parts.append(f"{ha} (HA)")
         return ", ".join(parts)
 
     df["abilities_str"] = df.apply(abilities_str, axis=1)
@@ -128,9 +132,10 @@ labels, label_to_dex = dex_labels(tuple(df["dex_str"]), tuple(df["name"]))
 # ---------------------------------------------------------------- quick search
 st.header("Quick Scrambler Search")
 st.caption("Start typing a name or dex number in a box and pick from the "
-           "filtered list — up to three Pokémon at once. Each one shows its "
-           "full details, then every Pokémon whose dex number is a "
-           "rearrangement of the same digits.")
+           "filtered list — up to three Pokémon at once. Each result is a "
+           "single table — your Pokémon on top (★ Searched), then every "
+           "Pokémon whose dex number is a rearrangement of the same "
+           "digits — so everything scrolls together.")
 
 for slot in range(1, 4):
     with st.container(border=True):
@@ -144,16 +149,19 @@ for slot in range(1, 4):
         if pick is None:
             continue
         dex = label_to_dex[pick]
-        source = df[df["dex"] == dex].iloc[0]
-        st.markdown(f"**You searched: {source['dex_str']} {source['name']}**")
-        show_table(df[df["dex"] == dex], RESULT_COLS)
+        source = df[df["dex"] == dex].copy()
+        source["set"] = "★ Searched"
+        matches = df[df["dex_str"].isin(smap[f"{dex:04d}"])].copy()
+        matches = matches.sort_values("dex")
+        matches["set"] = "Scramble"
+        combined = pd.concat([source, matches], ignore_index=True)
 
-        matches = df[df["dex_str"].isin(smap[f"{dex:04d}"])].sort_values("dex")
-        st.markdown(f"**Scrambles to ({len(matches)}):**")
+        row = source.iloc[0]
+        st.markdown(f"**You searched: {row['dex_str']} {row['name']}** — "
+                    f"{len(matches)} scramble(s)")
+        show_table(combined, RESULT_COLS)
         if matches.empty:
             st.info("No valid Pokémon matches found.")
-        else:
-            show_table(matches, RESULT_COLS)
 
 # ---------------------------------------------------------------- full explorer
 st.header("Full Dex Explorer")

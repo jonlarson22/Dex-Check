@@ -46,20 +46,29 @@ for n in ["Metapod", "Weezing", "Wo-Chien", "Iron Leaves",
     assert n in names, f"missing {n}"
 print("1. dropdown dex search OK")
 
-# sprite regression guard: first column of every table is raw 'sprite'
+# sprite regression guard: any sprite column present must use the raw
+# 'sprite' key or the ImageColumn config stops matching (URLs as text)
 for f in frames(at):
-    assert list(f.columns)[0] == "sprite", list(f.columns)
+    for c in f.columns:
+        if c.lower() == "sprite":
+            assert c == "sprite", f"sprite column renamed to {c!r}"
 print("2. sprite column key intact (ImageColumn will match)")
 
-# searched Pokemon gets a full-detail row
+# combined table: searched Pokemon is the top row, marked, with full detail
 electrode = [f for f in frames(at)
              if "Name" in f.columns and "Electrode" in f["Name"].tolist()]
-row = electrode[0].iloc[0]
+frame = electrode[0]
+row = frame.iloc[0]
+assert row["Name"] == "Electrode" and row["Set"] == "★ Searched", row
+assert set(frame["Set"]) == {"★ Searched", "Scramble"}
 for c in ["HP", "Atk", "Def", "SpA", "SpD", "Spe", "BST", "Abilities",
           "Height", "Weight (lbs)", "Gen"]:
-    assert c in electrode[0].columns, f"source row missing column {c}"
+    assert c in frame.columns, f"combined row missing column {c}"
 assert int(row["BST"]) == 490 and int(row["Spe"]) == 150, row
-print("3. full-detail source row OK")
+# Metapod has no hidden ability: must not render 'nan'
+metapod = frame[frame["Name"] == "Metapod"].iloc[0]
+assert metapod["Abilities"] == "Shed Skin", metapod["Abilities"]
+print("3. combined table + full-detail top row OK")
 
 # ---- 4. dropdown options: all 1025, searchable by name or number
 at = fresh()
@@ -117,5 +126,22 @@ assert not at.exception, at.exception
 big = frames(at)[-1]
 assert list(big["Name"]) == ["Unfezant"], list(big["Name"])
 print("8. explorer dex search OK")
+
+# ---- 9. his Pineco screenshot: Cherubi must show 'Chlorophyll', not 'nan'
+at = fresh()
+at.selectbox(key="quick1").set_value("0204 Pineco")
+at.run(timeout=120)
+assert not at.exception, at.exception
+for f in frames(at):
+    if "Abilities" in f.columns:
+        for val in f["Abilities"].astype(str):
+            assert "nan" not in val, f"'nan' leaked into abilities: {val}"
+pineco = [f for f in frames(at)
+          if "Name" in f.columns and "Pineco" in f["Name"].tolist()][0]
+cherubi = pineco[pineco["Name"] == "Cherubi"].iloc[0]
+assert cherubi["Abilities"] == "Chlorophyll", cherubi["Abilities"]
+assert pineco.iloc[0]["Name"] == "Pineco"
+assert len(pineco) == 6  # Pineco + Arbok, Golbat, Magby, Kricketot, Cherubi
+print("9. no-'nan' hidden ability fix OK")
 
 print("ALL TESTS PASSED")

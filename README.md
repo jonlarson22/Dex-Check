@@ -14,12 +14,13 @@ height and weight.
   `main`, main file path `app.py`
 
 Features: quick search for up to three Pokémon at once via a
-type-to-filter dropdown (search by name or dex number) — the searched
-Pokémon gets a full detail row (sprite, types, all six stats, abilities,
-height, weight, generation) above its scramble matches. Plus a full Dex
-explorer with name/dex search, type/generation filters, a BST range
-slider, sortable columns, and a column picker (Sprite, Dex and Name are
-always shown).
+type-to-filter dropdown (search by name or dex number). Each result is a
+single table — the searched Pokémon on top (marked ★ Searched) with its
+scrambles below — showing sprite, types, all six stats, abilities,
+height, weight and generation, so everything scrolls together. Plus a
+full Dex explorer with name/dex search, type/generation filters, a BST
+range slider, sortable columns, and a column picker (Sprite, Dex and
+Name are always shown).
 
 ### Data note
 
