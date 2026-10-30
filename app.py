@@ -43,6 +43,19 @@ DISPLAY_NAMES = {
 RENAME = {k: v for k, v in DISPLAY_NAMES.items() if k != "sprite"}
 SPRITE_CONFIG = {"sprite": st.column_config.ImageColumn("Sprite",
                                                         width="small")}
+# Shared by every table: roomier text columns and one-decimal formats for
+# the measured quantities. Widths are sized from the data: the longest
+# ability list is 47 chars, the longest Scrambles To list is 73 chars.
+MEASURE_CONFIG = {
+    "Abilities": st.column_config.TextColumn("Abilities", width=400),
+    "Scrambles To": st.column_config.TextColumn("Scrambles To", width=560),
+    "Weight (lbs)": st.column_config.NumberColumn("Weight (lbs)",
+                                                  format="%.1f"),
+    "Weight (kg)": st.column_config.NumberColumn("Weight (kg)",
+                                                 format="%.1f"),
+    "Height (m)": st.column_config.NumberColumn("Height (m)",
+                                                format="%.1f"),
+}
 
 # Every column the explorer can show, in canonical order. Sprite, Dex and
 # Name are permanent; the rest are pickable.
@@ -109,18 +122,28 @@ def dex_labels(dex_strs: tuple, names: tuple):
 
 def show_table(frame: pd.DataFrame, cols: list, highlight_first: bool = False):
     display = frame[cols].rename(columns=RENAME)
+    # Always go through a Styler so number formats are explicit: a bare
+    # Styler renders floats with 6 decimals (1.100000) instead of the
+    # grid's trimmed format.
+    styler = display.style.format(
+        {c: "{:.1f}" for c in ("Weight (lbs)", "Weight (kg)", "Height (m)")
+         if c in display.columns}
+    )
     if highlight_first and not display.empty:
         def style_row(row):
             css = ("background-color: rgba(250, 180, 0, 0.30); "
                    "font-weight: bold")
             return [css if row.name == display.index[0] else ""
                     for _ in row]
-        display = display.style.apply(style_row, axis=1)
+        styler = styler.apply(style_row, axis=1)
+    config = dict(MEASURE_CONFIG)
+    if "sprite" in cols:
+        config.update(SPRITE_CONFIG)
     st.dataframe(
-        display,
+        styler,
         hide_index=True,
         width="stretch",
-        column_config=SPRITE_CONFIG if "sprite" in cols else {},
+        column_config=config,
     )
 
 
@@ -212,7 +235,7 @@ st.dataframe(
     hide_index=True,
     width="stretch",
     height=600,
-    column_config=SPRITE_CONFIG,
+    column_config={**SPRITE_CONFIG, **MEASURE_CONFIG},
 )
 st.caption(f"{len(view)} of {len(df)} Pokémon shown · Data: PokéAPI "
            "(current-generation base stats, base forms)")
