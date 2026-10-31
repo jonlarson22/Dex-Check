@@ -71,13 +71,19 @@ COLUMN_CONFIG = {
     "Gen": st.column_config.NumberColumn("Gen", width=64, format="%d"),
     "Scrambles To": st.column_config.TextColumn("Scrambles To", width=600),
 }
-# Columns whose contents (and headers, where the grid honors it) are
-# centered: Dex, the stats block, heights, weights and Gen. Name, Type,
-# Abilities and Scrambles To stay left-aligned.
-CENTER_COLS = ["Dex", "HP", "Atk", "Def", "SpA", "SpD", "Spe", "BST",
-               "Height", "Height (m)", "Weight (lbs)", "Weight (kg)",
-               "Gen"]
 ONE_DECIMAL = ("Weight (lbs)", "Weight (kg)", "Height (m)")
+TYPE_COLORS = {
+    "Normal": "#A8A77A", "Fire": "#EE8130", "Water": "#6390F0",
+    "Electric": "#F7D02C", "Grass": "#7AC74C", "Ice": "#96D9D6",
+    "Fighting": "#C22E28", "Poison": "#A33EA1", "Ground": "#E2BF65",
+    "Flying": "#A98FF3", "Psychic": "#F95587", "Bug": "#A6B91A",
+    "Rock": "#B6A136", "Ghost": "#735797", "Dragon": "#6F35FC",
+    "Dark": "#705746", "Steel": "#B7B7CE", "Fairy": "#D685AD",
+}
+DARK_TEXT_TYPES = {"Electric", "Ice", "Ground", "Steel", "Fairy"}
+STAT_BAR_COLS = [("HP", "hp"), ("Atk", "attack"), ("Def", "defense"),
+                 ("SpA", "sp_attack"), ("SpD", "sp_defense"),
+                 ("Spe", "speed")]
 
 # Every column the explorer can show, in canonical order. Sprite, Dex and
 # Name are permanent; the rest are pickable.
@@ -144,18 +150,12 @@ def dex_labels(dex_strs: tuple, names: tuple):
 
 def styled(display: pd.DataFrame, highlight_first: bool = False):
     """The Styler every table goes through: explicit one-decimal formats
-    (a bare Styler renders floats as 1.100000), centered numeric columns,
-    and optionally the gold highlight on the first row."""
+    (a bare Styler renders floats as 1.100000) and optionally the gold
+    highlight on the first row. (Cell alignment is NOT set here: the
+    Streamlit grid ignores Styler text-align and hard-codes numbers
+    right / text left — verified on the live app 2026-10-30.)"""
     styler = display.style.format(
         {c: "{:.1f}" for c in ONE_DECIMAL if c in display.columns})
-    centered = [c for c in CENTER_COLS if c in display.columns]
-    if centered:
-        styler = styler.set_properties(subset=centered,
-                                       **{"text-align": "center"})
-        styler = styler.set_table_styles(
-            [{"selector": f"th.col{display.columns.get_loc(c)}",
-              "props": [("text-align", "center")]} for c in centered],
-            overwrite=False)
     if highlight_first and not display.empty:
         def style_row(row):
             css = ("background-color: rgba(250, 180, 0, 0.30); "
@@ -176,9 +176,64 @@ def show_table(frame: pd.DataFrame, cols: list, highlight_first: bool = False):
     )
 
 
+def type_chip(type_name: str) -> str:
+    fg = "#1A1A1A" if type_name in DARK_TEXT_TYPES else "#FFFFFF"
+    return (f'<span style="background:{TYPE_COLORS[type_name]};color:{fg};'
+            f'padding:2px 10px;border-radius:999px;font-size:0.8rem;'
+            f'font-weight:600;margin-right:6px">{type_name}</span>')
+
+
+def stat_bar(label: str, value: int, max_value: int, bold: bool = False) -> str:
+    pct = round(value / max_value * 100, 1)
+    weight = "700" if bold else "400"
+    return (
+        '<div style="display:flex;align-items:center;gap:8px;margin:2px 0">'
+        f'<span style="width:28px;font-size:0.8rem;opacity:0.75;'
+        f'font-weight:{weight}">{label}</span>'
+        '<span style="flex:1;background:rgba(140,150,170,0.25);'
+        'border-radius:4px;height:7px">'
+        f'<span style="display:block;width:{pct}%;background:#F5B301;'
+        'height:7px;border-radius:4px"></span></span>'
+        f'<span style="width:32px;text-align:right;font-size:0.85rem;'
+        f'font-weight:{weight}">{value}</span></div>')
+
+
+def hero_card(row) -> None:
+    """A profile card for the searched Pokémon above its scramble table:
+    official artwork, type chips, meta line and stat bars."""
+    artwork = row["sprite"].replace(
+        "/sprites/pokemon/", "/sprites/pokemon/other/official-artwork/")
+    chips = "".join(type_chip(t) for t in row["types"])
+    bars = "".join(stat_bar(label, int(row[col]), 255)
+                   for label, col in STAT_BAR_COLS)
+    bars += stat_bar("BST", int(row["bst"]), 720, bold=True)
+    st.markdown(
+        '<div style="display:flex;gap:16px;align-items:flex-start;'
+        'flex-wrap:wrap">'
+        f'<img src="{artwork}" onerror="this.style.display=\'none\'" '
+        'style="width:128px;height:128px;object-fit:contain">'
+        '<div style="flex:1;min-width:220px">'
+        f'<div style="font-size:1.45rem;font-weight:700;line-height:1.2">'
+        f'{row["name"]} <span style="opacity:0.6;font-weight:400">'
+        f'#{row["dex_str"]}</span></div>'
+        f'<div style="margin:6px 0 4px">{chips}</div>'
+        f'<div style="opacity:0.75;font-size:0.9rem">'
+        f'{row["height_ft"]} · {row["weight_lbs"]:.1f} lbs '
+        f'({row["weight_kg"]:.1f} kg) · Gen {int(row["generation"])}</div>'
+        f'<div style="opacity:0.75;font-size:0.9rem">Abilities: '
+        f'{row["abilities_str"]}</div>'
+        '</div></div>'
+        f'<div style="margin-top:10px">{bars}</div>',
+        unsafe_allow_html=True,
+    )
+
+
 st.set_page_config(page_title="Pokemon National Dex Scrambler",
                    page_icon="🎲", layout="wide")
 st.title("Pokémon National Dex Scrambler")
+st.caption("Every Pokémon whose National Dex number is an anagram of "
+           "another's — with full stats, types, abilities and sizes.")
+st.divider()
 
 df = load_data()
 smap = scramble_map(tuple(df["dex_str"]))
@@ -209,6 +264,7 @@ for slot in range(1, 4):
             continue
         dex = label_to_dex[pick]
         source = df[df["dex"] == dex]
+        hero_card(source.iloc[0])
         matches = df[df["dex_str"].isin(smap[f"{dex:04d}"])]
         matches = matches.sort_values("dex")
         combined = pd.concat([source, matches], ignore_index=True)
@@ -223,22 +279,24 @@ st.caption("The whole National Dex with its scramble matches. Click any "
            "column header to sort. Sprite, Dex and Name are always shown; "
            "pick the rest.")
 
-f1, f2, f3 = st.columns(3)
-with f1:
-    search_q = st.text_input("Search by name or dex number",
-                             placeholder="e.g. char, 0521, 25")
-with f2:
-    type_sel = st.multiselect("Type", ALL_TYPES)
-with f3:
-    gen_sel = st.multiselect("Generation", sorted(df["generation"].unique()))
+with st.expander("Filters & columns", expanded=False):
+    f1, f2, f3 = st.columns(3)
+    with f1:
+        search_q = st.text_input("Search by name or dex number",
+                                 placeholder="e.g. char, 0521, 25")
+    with f2:
+        type_sel = st.multiselect("Type", ALL_TYPES)
+    with f3:
+        gen_sel = st.multiselect("Generation",
+                                 sorted(df["generation"].unique()))
 
-bst_min, bst_max = int(df["bst"].min()), int(df["bst"].max())
-bst_range = st.slider("BST range", bst_min, bst_max, (bst_min, bst_max))
+    bst_min, bst_max = int(df["bst"].min()), int(df["bst"].max())
+    bst_range = st.slider("BST range", bst_min, bst_max, (bst_min, bst_max))
 
-chosen_cols = st.multiselect(
-    "Columns", PICKABLE_COLS, default=DEFAULT_PICKED,
-    format_func=lambda c: DISPLAY_NAMES[c],
-)
+    chosen_cols = st.multiselect(
+        "Columns", PICKABLE_COLS, default=DEFAULT_PICKED,
+        format_func=lambda c: DISPLAY_NAMES[c],
+    )
 show_cols = PERMANENT_COLS + [c for c in ALL_COLS
                               if c in chosen_cols and c not in PERMANENT_COLS]
 

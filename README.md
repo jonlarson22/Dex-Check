@@ -14,14 +14,16 @@ height and weight.
   `main`, main file path `app.py`
 
 Features: quick search for up to three Pokémon at once via a
-type-to-filter dropdown (search by name or dex number). Each result is a
-single table — the searched Pokémon highlighted on the top row, its
-scrambles below — showing sprite, types, all six stats, abilities,
-height, weight and generation, so everything scrolls together. Plus a
-full Dex explorer with name/dex search, type/generation filters, a BST
-range slider, sortable columns, and a column picker (Sprite, Dex and
-Name are always shown). Every column has a data-computed width, and the
-numeric columns (Dex, stats, heights, weights, Gen) are centered.
+type-to-filter dropdown (search by name or dex number). Each pick gets a
+profile card (official artwork, type badges, stat bars) above a single
+table — the searched Pokémon highlighted on the top row, its scrambles
+below — showing sprite, types, all six stats, abilities, height,
+weight and generation, so everything scrolls together. Plus a full Dex
+explorer with name/dex search, type/generation filters, a BST range
+slider, sortable columns, and a column picker (Sprite, Dex and Name are
+always shown). Every column has a data-computed width. Dark theme by
+default (deep slate + gold, `.streamlit/config.toml`); viewers can
+switch to Light in the app's ⋮ menu → Settings → Theme.
 
 ### Data note
 

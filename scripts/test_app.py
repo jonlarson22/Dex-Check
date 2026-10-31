@@ -147,4 +147,14 @@ assert pineco.iloc[0]["Name"] == "Pineco"
 assert len(pineco) == 6  # Pineco + Arbok, Golbat, Magby, Kricketot, Cherubi
 print("9. no-'nan' hidden ability fix OK")
 
+# 10. hero card: official artwork, type chips and stat bars for the pick
+at = fresh()
+at.selectbox[0].set_value("0025 Pikachu").run()
+md = " ".join(m.value for m in at.markdown)
+assert "official-artwork/25.png" in md, "hero artwork missing"
+assert "#F7D02C" in md and ">Electric</span>" in md, "type chip missing"
+assert "width:13.7%" in md, "HP bar (35/255) missing"
+assert "Abilities: Static, Lightning Rod (HA)" in md
+print("10. hero card OK")
+
 print("ALL TESTS PASSED")

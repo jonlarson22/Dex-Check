@@ -1,0 +1,10 @@
+# Dex-Check theme: dark by default, deep slate + gold accent (matching
+# the searched-row highlight). Viewers can still pick Light in the
+# app's ⋮ menu -> Settings -> Theme; their choice persists per browser.
+[theme]
+base = "dark"
+primaryColor = "#F5B301"
+backgroundColor = "#0D1526"
+secondaryBackgroundColor = "#182238"
+textColor = "#E9EEF7"
+font = "sans serif"
