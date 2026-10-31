@@ -208,11 +208,11 @@ def hero_card(row) -> None:
                    for label, col in STAT_BAR_COLS)
     bars += stat_bar("BST", int(row["bst"]), 720, bold=True)
     st.markdown(
-        '<div style="display:flex;gap:16px;align-items:flex-start;'
+        '<div style="display:flex;gap:20px;align-items:flex-start;'
         'flex-wrap:wrap">'
         f'<img src="{artwork}" onerror="this.style.display=\'none\'" '
         'style="width:128px;height:128px;object-fit:contain">'
-        '<div style="flex:1;min-width:220px">'
+        '<div style="flex:1 1 240px">'
         f'<div style="font-size:1.45rem;font-weight:700;line-height:1.2">'
         f'{row["name"]} <span style="opacity:0.6;font-weight:400">'
         f'#{row["dex_str"]}</span></div>'
@@ -222,8 +222,11 @@ def hero_card(row) -> None:
         f'({row["weight_kg"]:.1f} kg) · Gen {int(row["generation"])}</div>'
         f'<div style="opacity:0.75;font-size:0.9rem">Abilities: '
         f'{row["abilities_str"]}</div>'
-        '</div></div>'
-        f'<div style="margin-top:10px">{bars}</div>',
+        '</div>'
+        # Stat bars sit in-line as a third column on wide screens
+        # (capped at 460px) and wrap full-width under the info on phones
+        f'<div style="flex:1 1 300px;max-width:460px">{bars}</div>'
+        '</div>',
         unsafe_allow_html=True,
     )
 
